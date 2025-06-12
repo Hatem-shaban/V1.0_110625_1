@@ -166,13 +166,11 @@
                         .eq('id', userId)
                         .single();
 
-                    if (userError) throw userError;
-
-                    // Update subscription status based on plan type
+                    if (userError) throw userError;                    // Update subscription status based on plan type
                     const { error } = await stack.supabase
                         .from('users')
                         .update({ 
-                            subscription_status: userData.plan_type === 'lifetime' ? 'lifetime_active' : 'active',
+                            subscription_status: userData.plan_type === 'LIFETIME' ? 'lifetime_active' : 'active',
                             stripe_session_id: sessionId,
                             activated_at: new Date().toISOString()
                         })
@@ -610,30 +608,35 @@ async function createCheckoutSession(email, userId) {
                     console.error('Invalid price ID:', priceId);
                     throw new Error('Invalid price selected');
                 }
-                
-                // Validate plan type against database constraint
+                  // Validate plan type against database constraint
                 if (!['STARTER', 'PRO', 'LIFETIME'].includes(planType)) {
-                    console.error('Invalid plan type:', planType);
+                    console.error('Invalid plan type:', planType, 'from price ID:', priceId);
                     throw new Error('Invalid plan type selected');
-                }// Create new user account with pending subscription and plan type
-                const { data: newUser, error: createError } = await window.StartupStack.supabase
-                    .from('users')
+                }
+
+                // Ensure plan type is uppercase before database insert
+                const validatedPlanType = planType.toUpperCase();
+                
+                // Create new user account with pending subscription and plan type
+                const { data: newUser, error: createError } = await window.StartupStack.supabase                    .from('users')
                     .insert([{
                         email: email,
-                        plan_type: planType,
+                        plan_type: validatedPlanType,
                         subscription_status: 'pending',
                         created_at: new Date().toISOString()
                     }])
                     .select()
                     .single();
-                
-                if (createError) {
+                  if (createError) {
                     console.error('User creation error:', createError);
                     if (createError.code === '23505') {
-                        // Switch to login mode
+                        // Switch to login mode for duplicate email
                         document.getElementById('authTitle').textContent = 'Log In';
                         document.getElementById('authSubmitBtn').textContent = 'Log In';
                         throw new Error('Email already exists. Please log in.');
+                    } else if (createError.code === '23514') {
+                        // Handle plan type constraint violation
+                        throw new Error('Invalid plan type. Please try again or contact support.');
                     }
                     throw new Error('Failed to create account. Please try again.');
                 }// Store user data in localStorage

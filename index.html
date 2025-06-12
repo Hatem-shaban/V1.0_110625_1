@@ -592,7 +592,9 @@ async function createCheckoutSession(email, userId) {
                 // New user
                 if (isLoginOnly) {
                     throw new Error('Account not found. Please sign up first.');
-                }
+                }                // Get the selected plan type from the price ID
+                const priceId = localStorage.getItem('selectedPriceId');
+                const planType = priceId === 'price_1RYhFGE92IbV5FBUqiKOcIqX' ? 'lifetime' : 'monthly';
 
                 // Create new user account
                 const { data: newUser, error: createError } = await window.StartupStack.supabase
@@ -600,10 +602,11 @@ async function createCheckoutSession(email, userId) {
                     .insert([{
                         email: email,
                         created_at: new Date().toISOString(),
-                        subscription_status: 'pending'
+                        subscription_status: 'pending',
+                        plan_type: planType
                     }])
                     .select()
-                    .single();                if (createError) {
+                    .single();if (createError) {
                     console.error('User creation error:', createError);
                     if (createError.code === '23505') {
                         // Switch to login mode

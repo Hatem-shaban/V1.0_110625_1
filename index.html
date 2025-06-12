@@ -603,23 +603,19 @@ async function createCheckoutSession(email, userId) {
                         subscription_status: 'pending'
                     }])
                     .select()
-                    .single();
-
-                if (createError) {
+                    .single();                if (createError) {
                     console.error('User creation error:', createError);
                     if (createError.code === '23505') {
-                        isLoginMode = true;
+                        // Switch to login mode
                         document.getElementById('authTitle').textContent = 'Log In';
+                        document.getElementById('authSubmitBtn').textContent = 'Log In';
                         throw new Error('Email already exists. Please log in.');
                     }
                     throw new Error('Failed to create account. Please try again.');
-                }                // Store user data in localStorage
+                }// Store user data in localStorage
                 localStorage.setItem('userId', newUser.id);
                 localStorage.setItem('userEmail', email);
-
-                // Send welcome email
-                sendWelcomeEmail(email);
-
+                
                 // Create checkout session for new user
                 try {
                     const sessionId = await createCheckoutSession(email, newUser.id);
@@ -634,7 +630,7 @@ async function createCheckoutSession(email, userId) {
             showNotification(error.message || 'Authentication failed', 'error');
         } finally {
             submitButton.disabled = false;
-            submitButton.innerHTML = isLoginMode ? 'Log In' : 'Sign Up';
+            submitButton.innerHTML = submitButton.textContent;
         }
     });
     </script>

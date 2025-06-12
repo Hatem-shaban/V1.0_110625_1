@@ -26,15 +26,17 @@ exports.handler = async (event, context) => {
         
         if (!session || session.status !== 'complete') {
             throw new Error('Invalid or incomplete session');
-        }
-
-        // Get plan type from session metadata
+        }        // Get and validate plan type from session metadata
         const planType = session.metadata.planType;
+        if (!planType || !['starter', 'pro', 'lifetime'].includes(planType)) {
+            throw new Error('Invalid plan type in session');
+        }
 
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({                success: true,
+            body: JSON.stringify({
+                success: true,
                 planType,
                 customerEmail: session.customer_email,
                 sessionId: session.id

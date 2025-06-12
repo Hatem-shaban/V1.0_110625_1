@@ -593,35 +593,40 @@ async function createCheckoutSession(email, userId) {
                 if (isLoginOnly) {
                     throw new Error('Account not found. Please sign up first.');
                 }
-                
+
                 // Get the selected plan type from the price ID
                 const priceId = localStorage.getItem('selectedPriceId');
-                let planType;
-                switch (priceId) {
-                    case 'price_1RYhFGE92IbV5FBUqiKOcIqX':
-                        planType = 'lifetime';
-                        break;
-                    case 'price_1RYhAlE92IbV5FBUCtOmXIow':
-                        planType = 'starter';
-                        break;
-                    case 'price_1RSdrmE92IbV5FBUV1zE2VhD':
-                        planType = 'pro';
-                        break;
-                    default:
-                        throw new Error('Invalid price selected');
+                if (!priceId) {
+                    throw new Error('No price selected');
                 }
 
-                // Create new user account with pending subscription and plan type
+                // Map price ID to plan type and validate
+                const priceToPlan = {
+                    'price_1RYhFGE92IbV5FBUqiKOcIqX': 'lifetime',
+                    'price_1RYhAlE92IbV5FBUCtOmXIow': 'starter',
+                    'price_1RSdrmE92IbV5FBUV1zE2VhD': 'pro'
+                };
+
+                const planType = priceToPlan[priceId];
+                if (!planType) {
+                    console.error('Invalid price ID:', priceId);
+                    throw new Error('Invalid price selected');
+                }// Validate plan type
+                if (!['starter', 'pro', 'lifetime'].includes(planType)) {
+                    throw new Error('Invalid plan type selected');
+                }                // Create new user account with pending subscription and plan type
                 const { data: newUser, error: createError } = await window.StartupStack.supabase
                     .from('users')
                     .insert([{
                         email: email,
-                        created_at: new Date().toISOString(),
+                        plan_type: planType,
                         subscription_status: 'pending',
-                        plan_type: planType
+                        created_at: new Date().toISOString()
                     }])
                     .select()
-                    .single();if (createError) {
+                    .single();
+                
+                if (createError) {
                     console.error('User creation error:', createError);
                     if (createError.code === '23505') {
                         // Switch to login mode

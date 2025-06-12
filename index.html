@@ -594,7 +594,20 @@ async function createCheckoutSession(email, userId) {
                     throw new Error('Account not found. Please sign up first.');
                 }                // Get the selected plan type from the price ID
                 const priceId = localStorage.getItem('selectedPriceId');
-                const planType = priceId === 'price_1RYhFGE92IbV5FBUqiKOcIqX' ? 'lifetime' : 'monthly';
+                let planType;
+                switch (priceId) {
+                    case 'price_1RYhFGE92IbV5FBUqiKOcIqX':
+                        planType = 'lifetime';
+                        break;
+                    case 'price_1RYhAlE92IbV5FBUCtOmXIow':
+                        planType = 'starter';
+                        break;
+                    case 'price_1RSdrmE92IbV5FBUV1zE2VhD':
+                        planType = 'pro';
+                        break;
+                    default:
+                        throw new Error('Invalid price selected');
+                }
 
                 // Create new user account
                 const { data: newUser, error: createError } = await window.StartupStack.supabase

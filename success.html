@@ -7,8 +7,12 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script type="module">
-        import startupStackPromise from './app.js';        async function activateSubscription() {
-            const statusDiv = document.getElementById('status');            try {
+        import startupStackPromise from './app.js';
+
+        async function activateSubscription() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
                 const params = new URLSearchParams(window.location.search);
                 const sessionId = params.get('session_id');
                 const email = localStorage.getItem('userEmail');
@@ -34,12 +38,53 @@
                     throw new Error('Invalid session');
                 }
 
-                const isLifetimePlan = sessionData.isLifetimePlan;
+                const planType = sessionData.planType;
 
-                // Get or create user account
-                const { user, error: userError } = await stack.userManager.handleUserAccess(email);
+                // Fetch user record first
+                const { data: userData, error: userError } = await stack.supabase
+                    .from('users')
+                    .select('id')
+                    .eq('email', email)
+                    .single();
+
                 if (userError) throw userError;
-                
+                const userId = userData.id;
+
+                // Store user data
+                localStorage.setItem('userId', userId);
+                localStorage.setItem('sessionId', sessionId);
+                localStorage.setItem('subscriptionActive', 'true');
+
+                statusDiv.textContent = 'Activating your subscription...';
+
+                // Update subscription status
+                const { data: updatedUser, error: updateError } = await stack.supabase
+                    .from('users')
+                    .update({ 
+                        subscription_status: planType === 'lifetime' ? 'lifetime_active' : 'active',
+                        updated_at: new Date().toISOString(),
+                        stripe_session_id: sessionId,
+                        plan_type: planType
+                    })
+                    .eq('id', userId)
+                    .select()
+                    .single();
+
+                if (updateError) throw updateError;
+
+                // Verify the update
+                const { data: verifyUser, error: verifyError } = await stack.supabase
+                    .from('users')
+                    .select('subscription_status')
+                    .eq('id', userId)
+                    .single();
+
+                if (verifyError) throw verifyError;
+
+                if (!['active', 'lifetime_active'].includes(verifyUser.subscription_status)) {
+                    throw new Error('Subscription status update failed');
+                }
+
                 // Send welcome email
                 try {
                     await fetch('/.netlify/functions/send-welcome-email', {
@@ -54,39 +99,6 @@
                 } catch (emailError) {
                     console.error('Welcome email error:', emailError);
                     // Continue with activation even if email fails
-                }
-
-                // Store user data
-                localStorage.setItem('userId', user.id);
-                localStorage.setItem('sessionId', sessionId);
-                localStorage.setItem('subscriptionActive', 'true');
-
-                statusDiv.textContent = 'Activating your subscription...';                // Update subscription status with explicit return
-                const { data, error } = await stack.supabase
-                    .from('users')
-                    .update({ 
-                        subscription_status: isLifetimePlan ? 'lifetime_active' : 'active',
-                        updated_at: new Date().toISOString(),
-                        stripe_session_id: sessionId,
-                        plan_type: isLifetimePlan ? 'lifetime' : 'monthly'
-                    })
-                    .eq('id', user.id)
-                    .select()
-                    .single();
-
-                if (error) throw error;
-
-                // Verify the update
-                const { data: verifyUser, error: verifyError } = await stack.supabase
-                    .from('users')
-                    .select('subscription_status')
-                    .eq('id', user.id)
-                    .single();
-
-                if (verifyError) throw verifyError;
-
-                if (verifyUser.subscription_status !== 'active') {
-                    throw new Error('Subscription status update failed');
                 }
 
                 statusDiv.innerHTML = 'Subscription activated successfully!';

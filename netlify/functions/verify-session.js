@@ -19,24 +19,23 @@ exports.handler = async (event, context) => {
         const { sessionId } = JSON.parse(event.body);
         if (!sessionId) {
             throw new Error('Session ID is required');
-        }
-
-        // Retrieve the session from Stripe
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        }        // Retrieve the session from Stripe
+        const session = await stripe.checkout.sessions.retrieve(sessionId, {
+            expand: ['line_items']
+        });
         
         if (!session || session.status !== 'complete') {
             throw new Error('Invalid or incomplete session');
         }
 
-        // Determine if this is a lifetime plan
-        const isLifetimePlan = session.mode === 'payment';
+        // Get plan type from session metadata
+        const planType = session.metadata.planType;
 
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({
-                success: true,
-                isLifetimePlan,
+            body: JSON.stringify({                success: true,
+                planType,
                 customerEmail: session.customer_email,
                 sessionId: session.id
             })

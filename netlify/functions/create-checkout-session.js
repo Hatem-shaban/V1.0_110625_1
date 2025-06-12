@@ -36,11 +36,10 @@ exports.handler = async (event, context) => {
         const { customerEmail, priceId } = JSON.parse(event.body);
         if (!customerEmail || !priceId) {
             throw new Error('Missing required parameters');
-        }        // Map price ID to plan type
-        const priceToPlan = {
-            'price_1RYhFGE92IbV5FBUqiKOcIqX': 'lifetime',
-            'price_1RYhAlE92IbV5FBUCtOmXIow': 'starter',
-            'price_1RSdrmE92IbV5FBUV1zE2VhD': 'pro'
+        }        // Map price ID to plan type        const priceToPlan = {
+            'price_1RYhFGE92IbV5FBUqiKOcIqX': 'LIFETIME',
+            'price_1RYhAlE92IbV5FBUCtOmXIow': 'STARTER',
+            'price_1RSdrmE92IbV5FBUV1zE2VhD': 'PRO'
         };
 
         const planType = priceToPlan[priceId];
@@ -50,9 +49,10 @@ exports.handler = async (event, context) => {
         }
 
         // Validate plan type against database constraints
-        if (!['starter', 'pro', 'lifetime'].includes(planType)) {
-            console.error('Invalid plan type:', planType);
-            throw new Error('Invalid subscription plan');
+        if (!['STARTER', 'PRO', 'LIFETIME'].includes(planType)) {
+            console.error('Invalid plan type:', planType, 'for price:', priceId);
+            throw new Error('Invalid subscription plan type');
+        }
 
         // Create or get user account
         const { data: user, error: userError } = await supabase

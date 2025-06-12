@@ -28,7 +28,7 @@ exports.handler = async (event, context) => {
             throw new Error('Invalid or incomplete session');
         }        // Get and validate plan type from session metadata
         const planType = session.metadata.planType;
-        if (!planType || !['starter', 'pro', 'lifetime'].includes(planType)) {
+        if (!planType || !['STARTER', 'PRO', 'LIFETIME'].includes(planType)) {
             throw new Error('Invalid plan type in session');
         }
 

@@ -598,23 +598,24 @@ async function createCheckoutSession(email, userId) {
                 const priceId = localStorage.getItem('selectedPriceId');
                 if (!priceId) {
                     throw new Error('No price selected');
-                }
-
-                // Map price ID to plan type and validate
+                }                // Map price ID to plan type and validate
                 const priceToPlan = {
-                    'price_1RYhFGE92IbV5FBUqiKOcIqX': 'lifetime',
-                    'price_1RYhAlE92IbV5FBUCtOmXIow': 'starter',
-                    'price_1RSdrmE92IbV5FBUV1zE2VhD': 'pro'
+                    'price_1RYhFGE92IbV5FBUqiKOcIqX': 'LIFETIME',
+                    'price_1RYhAlE92IbV5FBUCtOmXIow': 'STARTER',
+                    'price_1RSdrmE92IbV5FBUV1zE2VhD': 'PRO'
                 };
 
                 const planType = priceToPlan[priceId];
                 if (!planType) {
                     console.error('Invalid price ID:', priceId);
                     throw new Error('Invalid price selected');
-                }// Validate plan type
-                if (!['starter', 'pro', 'lifetime'].includes(planType)) {
+                }
+                
+                // Validate plan type against database constraint
+                if (!['STARTER', 'PRO', 'LIFETIME'].includes(planType)) {
+                    console.error('Invalid plan type:', planType);
                     throw new Error('Invalid plan type selected');
-                }                // Create new user account with pending subscription and plan type
+                }// Create new user account with pending subscription and plan type
                 const { data: newUser, error: createError } = await window.StartupStack.supabase
                     .from('users')
                     .insert([{

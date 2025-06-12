@@ -9,9 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 class UserManager {
     constructor(supabase) {
         this.supabase = supabase;
-    }
-
-    async signUp(email) {
+    }    async handleUserAccess(email) {
         try {
             // Check if user exists
             const { data: existingUser } = await this.supabase
@@ -21,7 +19,16 @@ class UserManager {
                 .single();
 
             if (existingUser) {
-                return existingUser;
+                // Update last login time
+                await this.supabase
+                    .from('users')
+                    .update({ last_login: new Date().toISOString() })
+                    .eq('id', existingUser.id);
+                    
+                return {
+                    user: existingUser,
+                    isNew: false
+                };
             }
 
             // Create new user
@@ -30,6 +37,7 @@ class UserManager {
                 .insert([{
                     email: email,
                     created_at: new Date().toISOString(),
+                    last_login: new Date().toISOString(),
                     subscription_status: 'pending'
                 }])
                 .select()

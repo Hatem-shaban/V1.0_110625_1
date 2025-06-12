@@ -215,11 +215,13 @@
 </head>
 <body class="bg-gray-900 text-white">
     <!-- Hero Section -->
-    <div class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-        <nav class="p-6">
+    <div class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">        <nav class="p-6">
             <div class="max-w-6xl mx-auto flex justify-between items-center">
                 <h1 class="text-2xl font-bold">StartupStack</h1>
-                <button onclick="scrollToPrice()" class="bg-purple-600 px-6 py-2 rounded-lg hover:bg-purple-700">Get Started</button>
+                <div class="flex gap-4">
+                    <button onclick="openAuthModal(true)" class="bg-transparent border border-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-600/20">Login</button>
+                    <button onclick="scrollToPrice()" class="bg-purple-600 px-6 py-2 rounded-lg hover:bg-purple-700">Get Started</button>
+                </div>
             </div>
         </nav>
         
@@ -373,14 +375,12 @@
                 <i class="fas fa-credit-card mr-2"></i>Start Your Free Trial Today
             </button>
         </div>
-    </section>
-
-    <!-- Auth Modal -->
+    </section>    <!-- Auth Modal -->
 <div id="authModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
     <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full mx-4">
         <!-- Modal Header -->
         <div class="flex justify-between items-center mb-6">
-            <h2 id="authTitle" class="text-2xl font-bold text-white">Log In</h2>
+            <h2 id="authTitle" class="text-2xl font-bold text-white">Get Started</h2>
             <button onclick="closeAuthModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
@@ -391,20 +391,18 @@
             <div>
                 <label for="email" class="block text-sm font-medium mb-2 text-white">Email Address</label>
                 <input type="email" id="email" name="email" required
-                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    placeholder="you@example.com">
             </div>
 
             <button type="submit" id="authSubmitBtn" 
-                class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition duration-200">
-                Log In
+                class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition duration-200">
+                Continue
             </button>
 
-            <p class="text-center text-sm text-gray-400">
-                <span id="authToggleText">New to StartupStack?</span>
-                <button type="button" onclick="toggleAuthMode()" class="text-purple-400 hover:text-purple-300 ml-1">
-                    <span id="authToggleAction">Sign Up</span>
-                </button>
-            </p>
+            <div id="authToggle" class="text-center text-sm text-gray-400">
+                We'll create an account if you're new, or sign you in if you already have one.
+            </div>
         </form>
     </div>
 </div>
@@ -519,11 +517,7 @@
                 setTimeout(() => notification.remove(), 300);
             }, 3000);
         };
-    </script>
-
-    <script>
-    let isLoginMode = true;
-
+    </script>    <script>
     // Show auth modal immediately if auth is required
     document.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -532,20 +526,28 @@
         }
     });
 
-    function openAuthModal() {
-        document.getElementById('authModal').classList.remove('hidden');
+    function openAuthModal(isLoginOnly = false) {
+        const modal = document.getElementById('authModal');
+        modal.classList.remove('hidden');
+        
+        // Update modal title and button based on context
+        const authTitle = document.getElementById('authTitle');
+        const submitBtn = document.getElementById('authSubmitBtn');
+        const toggleSection = document.getElementById('authToggle');
+        
+        if (isLoginOnly) {
+            authTitle.textContent = 'Welcome Back';
+            submitBtn.textContent = 'Login';
+            toggleSection.classList.add('hidden');
+        } else {
+            authTitle.textContent = 'Get Started';
+            submitBtn.textContent = 'Continue';
+            toggleSection.classList.remove('hidden');
+        }
     }
 
     function closeAuthModal() {
         document.getElementById('authModal').classList.add('hidden');
-    }
-
-    function toggleAuthMode() {
-        isLoginMode = !isLoginMode;
-        document.getElementById('authTitle').textContent = isLoginMode ? 'Log In' : 'Sign Up';
-        document.getElementById('authToggleText').textContent = isLoginMode ? 'New to StartupStack?' : 'Already have an account?';
-        document.getElementById('authToggleAction').textContent = isLoginMode ? 'Sign Up' : 'Log In';
-        document.getElementById('authSubmitBtn').textContent = isLoginMode ? 'Log In' : 'Create Account';
     }
 
     // Error messages
@@ -584,12 +586,11 @@ async function createCheckoutSession(email, userId) {
     }
 
     return data.id;
-}
-
-    document.getElementById('authForm').addEventListener('submit', async (event) => {
+}    document.getElementById('authForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         const email = document.getElementById('email').value;
         const submitButton = event.submitter;
+        const isLoginOnly = document.getElementById('authTitle').textContent === 'Welcome Back';
         
         try {
             submitButton.disabled = true;
@@ -600,62 +601,46 @@ async function createCheckoutSession(email, userId) {
                 await initializeApp();
             }
 
-            if (isLoginMode) {
-                // Login flow with better error handling
-                const { data: user, error: loginError } = await window.StartupStack.supabase
-                    .from('users')
-                    .select('*')
-                    .eq('email', email)
-                    .single();
+            // Check if user exists
+            const { data: existingUser } = await window.StartupStack.supabase
+                .from('users')
+                .select('id, email, subscription_status')
+                .eq('email', email)
+                .maybeSingle();
 
-                if (loginError) {
-                    console.error('Login error:', loginError);
-                    throw new Error('User not found. Please sign up.');
-                }
-
-                // Store user data
-                localStorage.setItem('userId', user.id);
-                localStorage.setItem('userEmail', email);
-
-                // Check subscription status
-                if (user.subscription_status === 'active') {
-                    showNotification('Login successful!', 'success');
-                    window.location.replace('/dashboard.html');
+            if (existingUser) {
+                // User exists - check subscription status
+                if (existingUser.subscription_status === 'active' || 
+                    existingUser.subscription_status === 'lifetime_active') {
+                    // Active subscription - direct login
+                    localStorage.setItem('userId', existingUser.id);
+                    localStorage.setItem('userEmail', email);
+                    showNotification('Welcome back!', 'success');
+                    window.location.href = '/dashboard.html';
                     return;
-                }
-
-                // Create checkout session with better error handling
-                try {
-                    const sessionId = await createCheckoutSession(email, user.id);
+                } else if (isLoginOnly) {
+                    // Login attempt but no active subscription
+                    throw new Error('No active subscription found. Please subscribe to continue.');
+                } else {
+                    // Existing user trying to subscribe
+                    localStorage.setItem('userId', existingUser.id);
+                    localStorage.setItem('userEmail', email);
+                    const sessionId = await createCheckoutSession(email, existingUser.id);
                     await stripe.redirectToCheckout({ sessionId });
-                } catch (checkoutError) {
-                    console.error('Checkout error:', checkoutError);
-                    throw new Error('Failed to start checkout process. Please try again.');
                 }
-
             } else {
-                // Signup flow with duplicate check
-                const { data: existingUser } = await window.StartupStack.supabase
-                    .from('users')
-                    .select('id, email')
-                    .eq('email', email)
-                    .maybeSingle();
-
-                if (existingUser) {
-                    isLoginMode = true;
-                    document.getElementById('authTitle').textContent = 'Log In';
-                    document.getElementById('authSubmitBtn').textContent = 'Log In';
-                    throw new Error('Email already exists. Please log in.');
+                // New user
+                if (isLoginOnly) {
+                    throw new Error('Account not found. Please sign up first.');
                 }
 
-                // Create new user with only existing columns
+                // Create new user account
                 const { data: newUser, error: createError } = await window.StartupStack.supabase
                     .from('users')
                     .insert([{
                         email: email,
                         created_at: new Date().toISOString(),
-                        subscription_status: 'pending',
-                        last_login: new Date().toISOString()
+                        subscription_status: 'pending'
                     }])
                     .select()
                     .single();

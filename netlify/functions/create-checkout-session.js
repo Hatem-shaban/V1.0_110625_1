@@ -33,94 +33,66 @@ exports.handler = async (event, context) => {
             throw new Error('Method not allowed');
         }
 
-        const { customerEmail, userId, priceId } = JSON.parse(event.body);
-
-        if (!customerEmail || !userId) {
-            throw new Error('Missing required fields');
+        const { customerEmail, priceId } = JSON.parse(event.body);
+        if (!customerEmail || !priceId) {
+            throw new Error('Missing required parameters');
         }
 
-        // Verify user exists
-        const { data: existingUser, error: userError } = await supabase
-            .from('users')
-            .select('id, email, subscription_status')
-            .eq('id', userId)
-            .eq('email', customerEmail)
-            .single();
+        // Determine if this is a lifetime plan
+        const isLifetimePlan = priceId === process.env.STRIPE_LIFETIME_PRICE_ID;
 
-        if (userError) {
-            console.error('User verification error:', userError);
-            return {
-                statusCode: 404,
-                headers,
-                body: JSON.stringify({ error: 'User not found' })
-            };
-        }        // Determine checkout mode based on the price ID
-        const isLifetimePlan = priceId === 'price_1RYhFGE92IbV5FBUqiKOcIqX';
-        
-        // Create Stripe checkout session with specified price ID
+        // Create or get user account
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', customerEmail)
+            .maybeSingle();
+
+        if (userError) throw userError;
+
+        // If user exists, check their subscription status
+        if (user) {
+            if (user.subscription_status === 'active' || user.subscription_status === 'lifetime_active') {
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ error: 'User already has an active subscription' })
+                };
+            }
+        }
+
+        // Create Stripe checkout session
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             mode: isLifetimePlan ? 'payment' : 'subscription',
             line_items: [{
-                price: priceId || process.env.STRIPE_PRICE_ID, // Use provided price ID or fallback to default
+                price: priceId,
                 quantity: 1,
             }],
-            success_url: `${process.env.URL}/success.html?session_id={CHECKOUT_SESSION_ID}&userId=${userId}`,
-            cancel_url: `${process.env.URL}?checkout=cancelled`,
+            success_url: `${process.env.URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.URL}/?checkout=cancelled`,
             customer_email: customerEmail,
             metadata: {
-                userId: userId,
-                priceId: priceId || process.env.STRIPE_PRICE_ID
+                email: customerEmail,
+                priceId: priceId
             }
-        });        // Update user status with retry logic
-        let retryCount = 0;
-        const maxRetries = 3;
-        let updateError;
-
-        while (retryCount < maxRetries) {
-            const { error } = await supabase
-                .from('users')
-                .update({ 
-                    subscription_status: isLifetimePlan ? 'pending_lifetime' : 'pending_activation',
-                    stripe_session_id: session.id,
-                    selected_plan: priceId || process.env.STRIPE_PRICE_ID,
-                    updated_at: new Date().toISOString(),
-                    plan_type: isLifetimePlan ? 'lifetime' : 'subscription'
-                })
-                .eq('id', userId);
-
-            if (!error) {
-                updateError = null;
-                break;
-            }
-
-            updateError = error;
-            retryCount++;
-            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
-        }
-
-        if (updateError) {
-            console.error('Error updating user status after retries:', updateError);
-            // Even if update fails, continue with checkout
-            // The webhook will attempt to update the status again
-        }
+        });
 
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 id: session.id,
-                userId: userId,
                 success: true
             })
         };
 
     } catch (error) {
-        console.error('Create checkout session error:', error);
+        console.error('Checkout session error:', error);
         return {
             statusCode: error.statusCode || 500,
             headers,
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 error: error.message,
                 details: process.env.NODE_ENV === 'development' ? error : undefined
             })

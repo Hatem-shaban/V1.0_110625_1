@@ -7,24 +7,28 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
     <script type="module">
-        import startupStackPromise from './app.js';
-
-        async function activateSubscription() {
+        import startupStackPromise from './app.js';        async function activateSubscription() {
             const statusDiv = document.getElementById('status');
             try {
-                // Get session and user info from URL
                 const params = new URLSearchParams(window.location.search);
                 const sessionId = params.get('session_id');
-                const userId = localStorage.getItem('userId');
-
-                if (!sessionId || !userId) {
+                const email = localStorage.getItem('userEmail');                if (!sessionId || !email) {
                     throw new Error('Missing required information');
                 }
 
-                statusDiv.innerHTML = 'Initializing...';
+                statusDiv.textContent = 'Initializing your account...';
                 const stack = await startupStackPromise;
 
-                statusDiv.innerHTML = 'Updating subscription status...';
+                // Get or create user account
+                const { user, error: userError } = await stack.userManager.handleUserAccess(email);
+                if (userError) throw userError;
+
+                // Store user data
+                localStorage.setItem('userId', user.id);
+                localStorage.setItem('sessionId', sessionId);
+                localStorage.setItem('subscriptionActive', 'true');
+
+                statusDiv.textContent = 'Activating your subscription...';
                 // Update subscription status with explicit return
                 const { data, error } = await stack.supabase
                     .from('users')

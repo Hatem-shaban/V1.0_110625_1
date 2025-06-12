@@ -532,8 +532,9 @@ async function createCheckoutSession(email, userId) {
             customerEmail: email, 
             userId,
             priceId: priceId || process.env.STRIPE_PRICE_ID // Fallback to default price
-        })
-    });    if (!response.ok) {
+        })    });
+
+    if (!response.ok) {
         const errorData = await response.json();
         console.error('Checkout error:', errorData);
         throw new Error(errorData.error || ERROR_MESSAGES.CHECKOUT_FAILED);

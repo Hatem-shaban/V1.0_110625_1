@@ -39,8 +39,7 @@ exports.handler = async (event, context) => {
         }
 
         // Determine plan type from price ID
-        let planType;
-        switch (priceId) {
+        let planType;        switch (priceId) {
             case 'price_1RYhFGE92IbV5FBUqiKOcIqX':
                 planType = 'lifetime';
                 break;
@@ -52,6 +51,7 @@ exports.handler = async (event, context) => {
                 break;
             default:
                 throw new Error('Invalid price selected');
+        }
 
         // Create or get user account
         const { data: user, error: userError } = await supabase

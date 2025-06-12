@@ -4,22 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <title>StartupStack - AI-Powered SaaS Bundle for Entrepreneurs</title>    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3.11.0/dist/email.min.js"></script>
-    <script src="https://js.stripe.com/v3/"></script>    <script>
-        // Initialize EmailJS with error handling
-        try {
-            emailjs.init({
-                publicKey: "7gqJJx6DqBcygdMlE",
-                limitRate: true
-            });
-            console.log('EmailJS initialized successfully');
-        } catch (error) {
-            console.error('EmailJS initialization error:', error);
-            window.showNotification?.('Email service initialization failed', 'error');
-        }
-    </script>
+    <title>StartupStack - AI-Powered SaaS Bundle for Entrepreneurs</title>    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
     <script type="module">
         import startupStackPromise from './app.js';
         
@@ -447,33 +433,7 @@
                 }
             }
         }
-    </script>    <script>
-        // Email Functions with improved error handling
-        async function sendWelcomeEmail(userEmail, userName = 'New User') {
-            try {
-                const response = await fetch('/.netlify/functions/send-welcome-email', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        email: userEmail,
-                        userName: userName
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to send welcome email');
-                }
-
-                showNotification('Welcome email sent! Check your inbox.', 'success');
-                return true;
-            } catch (error) {
-                console.error('Failed to send welcome email:', error);
-                showNotification('Welcome email will be sent shortly.', 'info');
-                return false;
-            }
-        }        async function sendTrialEndingEmail(userEmail, userName = 'Valued Customer') {
+    </script>    <script>async function sendTrialEndingEmail(userEmail, userName = 'Valued Customer') {
             try {
                 const response = await fetch('/.netlify/functions/send-trial-ending-email', {
                     method: 'POST',
